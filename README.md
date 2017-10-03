@@ -37,11 +37,6 @@ import base64, hmac, time
 @require_POST
 @csrf_exempt
 def webhook(request):
-    # request headers
-    # you can validate these values or use them for something else
-    event = request.META.get('HTTP_X_PLATFORM_EVENT')
-    platform_sid = request.META.get('HTTP_X_PLATFORM_SID')
- 
     # x-payload-signature format:
     # t=timestampvalue,v=tokenvalue
     payload_signature = request.META.get('HTTP_X_PAYLOAD_SIGNATURE')
