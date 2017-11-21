@@ -62,7 +62,7 @@ def webhook(request):
     verifier = pkcs1_15.new(public_key)
 
     # extract the base64 encoded signature
-    signature = v.split('v=')[1]
+    signature = v[2:] # remove v=
     try:
         verifier.verify(sha, base64.b64decode(signature))
         # successfully verified signature
