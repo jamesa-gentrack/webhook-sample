@@ -30,46 +30,46 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from hashlib import sha512
- 
-import base64, hmac, time
- 
+
+from Crypto.Signature import pkcs1_15
+from Crypto.Hash import SHA512
+from Crypto.PublicKey import RSA
+
+import base64, time
+
 @require_POST
 @csrf_exempt
 def webhook(request):
+    # request headers
+    event = request.META.get('HTTP_X_PLATFORM_EVENT')
+    platform_sid = request.META.get('HTTP_X_PLATFORM_SID')
+
     # x-payload-signature format:
     # t=timestampvalue,v=tokenvalue
     payload_signature = request.META.get('HTTP_X_PAYLOAD_SIGNATURE')
     t, v = payload_signature.split(',')
- 
+
     # extract then validate timestamp
     timestamp = t.split('t=')[1]
     now = time.time()
     diff_minutes = (now - int(timestamp)) / 60
     # you can decide to reject the request if it is too old
     print diff_minutes
- 
-    # extract then validate signature
+
+    # get your application's public key from the developer portal
+    public_key = RSA.import_key(open("app-public-key").read())
+    sha = SHA512.new(base64.b64encode(request.body))
+    verifier = pkcs1_15.new(public_key)
+
+    # extract the base64 encoded signature
     signature = v.split('v=')[1]
- 
-    # authentication token
-    # don't commit your token to repository!
-    # use os.environ.get('AUTHENTICATION_TOKEN')
-    auth_token = 'token12345'
- 
-    mac = hmac.new(bytes(auth_token), digestmod=sha512)
-    mac.update(timestamp + ".")
-    # payload body
-    mac.update(request.body)
-    base64_mac = base64.b64encode(mac.digest())
- 
-    if not hmac.compare_digest(bytes(base64_mac), bytes(signature)):
+    try:
+        verifier.verify(sha, base64.b64decode(signature))
+        # successfully verified signature
+        return HttpResponse(status=200)
+    except (ValueError, TypeError):
         # invalid signature
-        return HttpResponse(status=403)
- 
-    # successfully verified signature
-    # do something with the payload..
-    return HttpResponse(status=200)
+        return HttpResponse(status=400)
 ```
 8. Run a development server to test:
 ```
