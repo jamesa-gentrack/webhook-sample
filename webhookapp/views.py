@@ -5,9 +5,12 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from hashlib import sha512
 
-import base64, hmac, json, time
+from Crypto.Signature import pkcs1_15
+from Crypto.Hash import SHA512
+from Crypto.PublicKey import RSA
+
+import base64, time
 
 @require_POST
 @csrf_exempt
@@ -28,23 +31,17 @@ def webhook(request):
     # you can decide to reject the request if it is too old
     print diff_minutes
 
-    # extract then validate signature
-    signature = v.split('v=')[1]
+    # get your application's public key from the developer portal
+    public_key = RSA.import_key(open("app-public-key").read())
+    sha = SHA512.new(base64.b64encode(request.body))
+    verifier = pkcs1_15.new(public_key)
 
-    # authentication token
-    # don't commit your token to repository!
-    # use os.environ.get('AUTHENTICATION_TOKEN')
-    auth_token = 'token12345'
-
-    mac = hmac.new(bytes(auth_token), digestmod=sha512)
-    mac.update(timestamp + ".")
-    # payload body
-    mac.update(request.body)
-    base64_mac = base64.b64encode(mac.digest())
-
-    if not hmac.compare_digest(bytes(base64_mac), bytes(signature)):
+    # extract the base64 encoded signature
+    signature = v[2:] # remove v=
+    try:
+        verifier.verify(sha, base64.b64decode(signature))
+        # successfully verified signature
+        return HttpResponse(status=200)
+    except (ValueError, TypeError):
         # invalid signature
-        return HttpResponse(status=403)
-
-    # successfully verified signature
-    return HttpResponse(status=200)
+        return HttpResponse(status=400)
