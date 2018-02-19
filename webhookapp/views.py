@@ -6,7 +6,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from Crypto.Signature import pkcs1_15
+from Crypto.Signature import PKCS1_v1_5
 from Crypto.Hash import SHA512
 from Crypto.PublicKey import RSA
 
@@ -34,7 +34,7 @@ def webhook(request):
     # get your application's public key from the developer portal
     public_key = RSA.import_key(open("app-public-key").read())
     sha = SHA512.new(base64.b64encode(request.body))
-    verifier = pkcs1_15.new(public_key)
+    verifier = PKCS1_v1_5.new(public_key)
 
     # extract the base64 encoded signature
     signature = v[2:] # remove v=
